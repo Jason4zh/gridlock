@@ -463,11 +463,11 @@ public class GridView extends View implements SensorEventListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             lastAbsX = Float.NaN;
             lastAbsY = Float.NaN;
-            boolean ok = requestPointerCapture();
-            captured = ok;
+            requestPointerCapture();
+            captured = true;
             postInvalidateOnAnimation();
             notifyState();
-            return ok;
+            return true;
         }
         return false;
     }
@@ -582,11 +582,11 @@ public class GridView extends View implements SensorEventListener {
         }
     }
 
-    public double getPivotX() {
+    public double getPivotWorldX() {
         return pivotX;
     }
 
-    public double getPivotY() {
+    public double getPivotWorldY() {
         return pivotY;
     }
 

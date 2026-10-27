@@ -398,7 +398,7 @@ public class MainActivity extends Activity {
     private void refreshStatusText() {
         status.setText(String.format(Locale.US,
                 "pivot=(%.0f, %.0f) θ=%+.1f° events=%d gain=%.2f%s",
-                grid.getPivotX(), grid.getPivotY(), grid.getThetaDeg(),
+                grid.getPivotWorldX(), grid.getPivotWorldY(), grid.getThetaDeg(),
                 grid.getEventCount(), grid.getGain(),
                 grid.isCaptured() ? "  [已捕获]" : "  [未捕获]"));
     }
