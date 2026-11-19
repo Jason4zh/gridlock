@@ -12,18 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: unpack
         run: |
-          mkdir -p src
-          tar xf bootstrap.b64 -C src
-          ls src
-      - name: push-sources
-        continue-on-error: true
-        run: |
-          git config user.name bot
-          git config user.email bot@example.com
-          rsync -a --delete --exclude .git src/ ./
-          git add -A
-          git commit -m "import bbc6min sources" || true
-          git push origin HEAD:bbc6min -f
+          mkdir -p /tmp/src
+          tar xf bootstrap.b64 -C /tmp/src
+          ls /tmp/src
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -32,16 +23,25 @@ jobs:
         with:
           gradle-version: "8.7"
       - name: build
-        working-directory: src
+        working-directory: /tmp/src
         run: gradle assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: src/app/build/outputs/apk/debug/app-debug.apk
+          path: /tmp/src/app/build/outputs/apk/debug/app-debug.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: bbc6min-latest
           name: BBC6Min latest debug
-          files: src/app/build/outputs/apk/debug/app-debug.apk
+          files: /tmp/src/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: push-sources
+        continue-on-error: true
+        run: |
+          git config user.name bot
+          git config user.email bot@example.com
+          rsync -a --delete --exclude .git /tmp/src/ ./
+          git add -A
+          git commit -m "import bbc6min sources" || true
+          git push origin HEAD:bbc6min -f
