@@ -1,0 +1,44 @@
+name: bootstrap
+on:
+  push:
+    branches: [ bbc6min-boot ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: unpack
+        run: |
+          base64 -d bootstrap.b64 > /tmp/src.tar.gz
+          mkdir -p src
+          tar xzf /tmp/src.tar.gz -C src
+      - name: push-sources
+        run: |
+          git config user.name bot
+          git config user.email bot@example.com
+          rsync -a --delete --exclude .git src/ ./
+          git add -A
+          git commit -m "import bbc6min sources" || true
+          git push origin HEAD:bbc6min -f
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+      - run: gradle assembleDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bbc6min-latest
+          name: BBC6Min latest debug
+          files: app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
