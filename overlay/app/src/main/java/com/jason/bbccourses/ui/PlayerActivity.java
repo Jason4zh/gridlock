@@ -598,7 +598,8 @@ public class PlayerActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     lesson = fresh;
                     bindLesson();
-                    Toast.makeText(this, "已更新，共 " + fresh.transcript.size() + " 行", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "已更新，共 " + fresh.transcript.size() + " 行\n"
+                            + com.jason.bbccourses.data.Repository.lastFetchInfo, Toast.LENGTH_LONG).show();
                 });
             } catch (Throwable e) {
                 runOnUiThread(() -> Toast.makeText(this, "重取失败：" + e, Toast.LENGTH_LONG).show());

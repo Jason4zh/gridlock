@@ -226,23 +226,39 @@ public Lesson lesson(String slug, String programmeSlug) throws Exception {
                 || (l.keywords != null && !l.keywords.isEmpty()));
         boolean suspicious = !hasNotes && (l == null || !l.hasTranscript() || l.transcript.size() < MIN_ROWS);
         if (suspicious) {
-            try {
-                Lesson fresh = BbcScraper.fetchLesson(slug, programmeSlug);
-                int oldRows = (l == null || l.transcript == null) ? 0 : l.transcript.size();
-                if (fresh.hasTranscript() && fresh.transcript.size() > oldRows) {
-                    l = fresh;
-                    fromDisk = false;
-                    try {
-                        writeFile(new File(lessonCacheDir, slug + ".json"), lessonJson(l).toString());
-                    } catch (Exception ignored) {
-                    }
-                } else if (l == null) {
-                    l = fresh;
+            // The site/CDN sometimes answers with a truncated variant, so retry and
+            // keep the longest transcript instead of trusting the first response.
+            Lesson best = null;
+            String lastErr = null;
+            for (int attempt = 0; attempt < 3; attempt++) {
+                try {
+                    Lesson f = BbcScraper.fetchLesson(slug, programmeSlug);
+                    int rows = f == null || f.transcript == null ? 0 : f.transcript.size();
+                    if (best == null || rows > best.transcript.size()) best = f;
+                    if (rows >= MIN_ROWS) break;
+                } catch (Exception e) {
+                    lastErr = e.getClass().getSimpleName() + ": " + e.getMessage();
                 }
-            } catch (Exception e) {
-                if (l == null) throw e;
-                android.util.Log.w("BBC6Min", "refetch failed for " + slug, e);
+                try {
+                    Thread.sleep(400);
+                } catch (InterruptedException ignored) {
+                }
             }
+            int oldRows = (l == null || l.transcript == null) ? 0 : l.transcript.size();
+            if (best != null && best.hasTranscript() && best.transcript.size() > oldRows) {
+                l = best;
+                fromDisk = false;
+                try {
+                    writeFile(new File(lessonCacheDir, slug + ".json"), lessonJson(l).toString());
+                } catch (Exception ignored) {
+                }
+            } else if (l == null) {
+                if (best != null) l = best;
+                else throw new Exception("抓取失败：" + lastErr);
+            }
+            lastFetchInfo = slug + " -> rows=" + (best == null ? 0 : best.transcript.size())
+                    + (lastErr == null ? "" : " err=" + lastErr);
+            android.util.Log.i("BBC6Min", lastFetchInfo);
         }
         if (!cleaned.contains(slug)) {
             l.transcript = TranscriptCleaner.clean(l.transcript);
@@ -267,6 +283,8 @@ public Lesson lesson(String slug, String programmeSlug) throws Exception {
     }
 
     private static final int MIN_ROWS = 25;
+    /** Human readable result of the last repair attempt (used by the diagnostics dialog). */
+    public static volatile String lastFetchInfo = "";
     private final java.util.Set<String> cleaned = new java.util.HashSet<>();
     private final java.util.Set<String> prepared = new java.util.HashSet<>();
 
