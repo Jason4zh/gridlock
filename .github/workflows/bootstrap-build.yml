@@ -12,8 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: unpack
         run: |
-          : > /tmp/src.tar
-          for f in src.part*; do base64 -d "$f" >> /tmp/src.tar; done
+          file src.part1 || true
+          cat src.part* > /tmp/src.tar
+          ls -l /tmp/src.tar
           mkdir -p /tmp/src
           tar xf /tmp/src.tar -C /tmp/src
           ls /tmp/src | head
