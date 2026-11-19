@@ -39,7 +39,7 @@ jobs:
           git commit -m 'build log' || true
           git push origin HEAD:bbc6min-logs -f
       - name: publish-apk
-        if: steps.bld.outcome == 'success'
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: bbc6min-latest
