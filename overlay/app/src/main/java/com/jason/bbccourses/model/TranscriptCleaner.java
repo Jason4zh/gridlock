@@ -94,9 +94,9 @@ public class TranscriptCleaner {
         for (String cand : new ArrayList<>(counts.keySet())) {
             if (names.contains(cand)) continue;
             Matcher sm = Pattern.compile("\\b" + Pattern.quote(cand) + "\\b").matcher(all.toString());
-            int total = 0;
-            while (sm.find()) total++;
-            if (total >= 2) names.add(cand);
+            int standalone = 0;
+            while (sm.find()) standalone++;
+            if (counts.get(cand) + standalone >= 2) names.add(cand);
         }
 
         Pattern glued = null;

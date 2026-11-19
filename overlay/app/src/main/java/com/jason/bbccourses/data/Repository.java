@@ -209,11 +209,13 @@ public Lesson lesson(String slug, String programmeSlug) throws Exception {
             }
         }
         // 2) disk cache
+        boolean fromDisk = false;
         if (l == null) {
             File f = new File(lessonCacheDir, slug + ".json");
             if (f.exists()) {
                 try {
                     l = Lesson.fromJson(new JSONObject(readFile(f)));
+                    fromDisk = l != null;
                 } catch (Exception ignored) {
                 }
             }
@@ -222,13 +224,14 @@ public Lesson lesson(String slug, String programmeSlug) throws Exception {
         boolean hasNotes = l != null && ((l.summary != null && !l.summary.isEmpty())
                 || (l.headlines != null && !l.headlines.isEmpty())
                 || (l.keywords != null && !l.keywords.isEmpty()));
-        boolean suspicious = !hasNotes && (l == null || !l.hasTranscript() || l.transcript.size() < 25);
+        boolean suspicious = !hasNotes && (l == null || !l.hasTranscript() || l.transcript.size() < MIN_ROWS);
         if (suspicious) {
             try {
                 Lesson fresh = BbcScraper.fetchLesson(slug, programmeSlug);
                 int oldRows = (l == null || l.transcript == null) ? 0 : l.transcript.size();
                 if (fresh.hasTranscript() && fresh.transcript.size() > oldRows) {
                     l = fresh;
+                    fromDisk = false;
                     try {
                         writeFile(new File(lessonCacheDir, slug + ".json"), lessonJson(l).toString());
                     } catch (Exception ignored) {
@@ -238,19 +241,32 @@ public Lesson lesson(String slug, String programmeSlug) throws Exception {
                 }
             } catch (Exception e) {
                 if (l == null) throw e;
+                android.util.Log.w("BBC6Min", "refetch failed for " + slug, e);
             }
         }
         if (!cleaned.contains(slug)) {
             l.transcript = TranscriptCleaner.clean(l.transcript);
             cleaned.add(slug);
         }
+        // A transcript only counts as "done" when it is actually complete; otherwise
+        // we must NOT cache it as prepared, so the next open retries the refetch.
+        boolean complete = hasNotes || (l.hasTranscript() && l.transcript.size() >= MIN_ROWS);
+        if (!complete && fromDisk) {
+            File bad = new File(lessonCacheDir, slug + ".json");
+            if (bad.exists()) bad.delete();
+        }
         synchronized (this) {
             lessonCache.put(slug, l);
-            prepared.add(slug);
+            if (complete || force) {
+                prepared.add(slug);
+            } else {
+                prepared.remove(slug);
+            }
         }
         return l;
     }
 
+    private static final int MIN_ROWS = 25;
     private final java.util.Set<String> cleaned = new java.util.HashSet<>();
     private final java.util.Set<String> prepared = new java.util.HashSet<>();
 
