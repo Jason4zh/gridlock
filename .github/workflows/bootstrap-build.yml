@@ -17,25 +17,29 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
       - uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: "8.7"
+          gradle-version: '8.7'
       - name: build
         id: bld
         continue-on-error: true
         working-directory: /tmp/src
         run: |
-          gradle assembleDebug --no-daemon --stacktrace > /tmp/build.log 2>&1; echo "EXIT=$?" >> /tmp/build.log; tail -25 /tmp/build.log
+          gradle assembleDebug --no-daemon --stacktrace > /tmp/build.log 2>&1
+          tail -40 /tmp/build.log
       - name: publish-log
         if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view bbc6min-logs >/dev/null 2>&1 || gh release create bbc6min-logs --title logs --notes "build logs"
-          gh release upload bbc6min-logs /tmp/build.log --clobber
+          git config user.name bot
+          git config user.email bot@example.com
+          cp /tmp/build.log ./build.log
+          git checkout -B bbc6min-logs
+          git add -f build.log
+          git commit -m 'build log' || true
+          git push origin HEAD:bbc6min-logs -f
       - name: publish-apk
-        if: steps.bld.outcome == "success"
+        if: steps.bld.outcome == 'success'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: bbc6min-latest
@@ -43,13 +47,3 @@ jobs:
           files: /tmp/src/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: push-sources
-        if: steps.bld.outcome == "success"
-        continue-on-error: true
-        run: |
-          git config user.name bot
-          git config user.email bot@example.com
-          rsync -a --delete --exclude .git /tmp/src/ ./
-          git add -A
-          git commit -m "import bbc6min sources" || true
-          git push origin HEAD:bbc6min -f
