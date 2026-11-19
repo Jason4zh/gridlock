@@ -15,7 +15,7 @@ jobs:
           cat src.part* > /tmp/src.tar
           mkdir -p /tmp/src
           tar xf /tmp/src.tar -C /tmp/src
-          ls /tmp/src | head
+          if [ -d overlay ]; then cp -a overlay/. /tmp/src/; echo applied overlay; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,15 +29,13 @@ jobs:
           if [ ! -f /tmp/src/app.keystore ]; then
             cd /tmp/src
             keytool -genkeypair -v -keystore app.keystore -storepass bbc6min -keypass bbc6min -alias bbc6min -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=BBC Courses,O=jason,C=CN"
-            gh release create bbc6min-keys -R "$R" --title keys --notes "stable signing key" || true
+            gh release create bbc6min-keys -R "$R" --title keys --notes "signing" || true
             gh release upload bbc6min-keys -R "$R" /tmp/src/app.keystore --clobber
           fi
-          ls -l /tmp/src/app.keystore
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.7"
       - name: build
-        id: bld
         continue-on-error: true
         working-directory: /tmp/src
         run: |
