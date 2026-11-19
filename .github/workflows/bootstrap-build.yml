@@ -12,9 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: unpack
         run: |
-          file src.part1 || true
           cat src.part* > /tmp/src.tar
-          ls -l /tmp/src.tar
           mkdir -p /tmp/src
           tar xf /tmp/src.tar -C /tmp/src
           ls /tmp/src | head
@@ -25,15 +23,16 @@ jobs:
       - name: prepare-keystore
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R: Jason4zh/GridLock
         run: |
-          cd /tmp/src
-          gh release download bbc6min-keys -p app.keystore --clobber 2>/dev/null || true
-          if [ ! -f app.keystore ]; then
+          gh release download bbc6min-keys -R "$R" -p app.keystore -D /tmp/src --clobber 2>/dev/null || true
+          if [ ! -f /tmp/src/app.keystore ]; then
+            cd /tmp/src
             keytool -genkeypair -v -keystore app.keystore -storepass bbc6min -keypass bbc6min -alias bbc6min -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=BBC Courses,O=jason,C=CN"
-            gh release create bbc6min-keys --title keys --notes "stable signing key" || true
-            gh release upload bbc6min-keys app.keystore --clobber
+            gh release create bbc6min-keys -R "$R" --title keys --notes "stable signing key" || true
+            gh release upload bbc6min-keys -R "$R" /tmp/src/app.keystore --clobber
           fi
-          ls -l app.keystore
+          ls -l /tmp/src/app.keystore
       - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.7"
@@ -48,16 +47,18 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R: Jason4zh/GridLock
         run: |
-          gh release view bbc6min-logs >/dev/null 2>&1 || gh release create bbc6min-logs --title logs --notes logs
-          gh release upload bbc6min-logs /tmp/build.log --clobber
+          gh release view bbc6min-logs -R "$R" >/dev/null 2>&1 || gh release create bbc6min-logs -R "$R" --title logs --notes logs
+          gh release upload bbc6min-logs -R "$R" /tmp/build.log --clobber
       - name: publish-apk
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R: Jason4zh/GridLock
         run: |
           APK=/tmp/src/app/build/outputs/apk/debug/app-debug.apk
           if [ -f "$APK" ]; then
-            gh release view bbc6min-latest >/dev/null 2>&1 || gh release create bbc6min-latest --title "BBC Courses" --notes apk
-            gh release upload bbc6min-latest "$APK" --clobber
+            gh release view bbc6min-latest -R "$R" >/dev/null 2>&1 || gh release create bbc6min-latest -R "$R" --title "BBC Courses" --notes apk
+            gh release upload bbc6min-latest -R "$R" "$APK" --clobber
           fi
