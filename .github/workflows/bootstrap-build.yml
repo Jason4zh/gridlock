@@ -17,10 +17,10 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.7'
+          gradle-version: "8.7"
       - name: build
         id: bld
         continue-on-error: true
@@ -30,20 +30,27 @@ jobs:
           tail -40 /tmp/build.log
       - name: publish-log
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view bbc6min-logs >/dev/null 2>&1 || gh release create bbc6min-logs --title logs --notes logs
+          gh release upload bbc6min-logs /tmp/build.log --clobber
+      - name: publish-apk
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK=/tmp/src/app/build/outputs/apk/debug/app-debug.apk
+          if [ -f "$APK" ]; then
+            gh release view bbc6min-latest >/dev/null 2>&1 || gh release create bbc6min-latest --title "BBC Courses" --notes apk
+            gh release upload bbc6min-latest "$APK" --clobber
+          fi
+      - name: push-sources
+        if: always()
         run: |
           git config user.name bot
           git config user.email bot@example.com
-          cp /tmp/build.log ./build.log
-          git checkout -B bbc6min-logs
-          git add -f build.log
-          git commit -m 'build log' || true
-          git push origin HEAD:bbc6min-logs -f
-      - name: publish-apk
-        if: always()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: bbc6min-latest
-          name: BBC6Min latest debug
-          files: /tmp/src/app/build/outputs/apk/debug/app-debug.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          rsync -a --delete --exclude .git /tmp/src/ ./
+          git add -A
+          git commit -m "sync sources" || true
+          git push origin HEAD:bbc6min -f
