@@ -14,7 +14,6 @@ jobs:
         run: |
           mkdir -p /tmp/src
           tar xf bootstrap.b64 -C /tmp/src
-          ls /tmp/src
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,13 +22,21 @@ jobs:
         with:
           gradle-version: "8.7"
       - name: build
+        id: bld
+        continue-on-error: true
         working-directory: /tmp/src
-        run: gradle assembleDebug --no-daemon --stacktrace
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: /tmp/src/app/build/outputs/apk/debug/app-debug.apk
-      - uses: softprops/action-gh-release@v2
+        run: |
+          gradle assembleDebug --no-daemon --stacktrace > /tmp/build.log 2>&1; echo "EXIT=$?" >> /tmp/build.log; tail -25 /tmp/build.log
+      - name: publish-log
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view bbc6min-logs >/dev/null 2>&1 || gh release create bbc6min-logs --title logs --notes "build logs"
+          gh release upload bbc6min-logs /tmp/build.log --clobber
+      - name: publish-apk
+        if: steps.bld.outcome == "success"
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: bbc6min-latest
           name: BBC6Min latest debug
@@ -37,6 +44,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: push-sources
+        if: steps.bld.outcome == "success"
         continue-on-error: true
         run: |
           git config user.name bot
